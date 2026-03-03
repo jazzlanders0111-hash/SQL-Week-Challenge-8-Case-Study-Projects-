@@ -1,0 +1,417 @@
+# Case Study #1 — Danny's Diner
+
+## 📚 Table of Contents
+- [Business Task](#business-task)
+- [Entity Relationship Diagram](#entity-relationship-diagram)
+- [Questions and Solutions](#questions-and-solutions)
+- [Bonus Questions](#bonus-questions)
+
+> All case study details sourced from: [8 Week SQL Challenge — Case Study #1](https://8weeksqlchallenge.com/case-study-1/)
+
+---
+
+## Business Task
+
+Danny opened a small Japanese restaurant in early 2021 selling his three favourite foods — sushi, curry, and ramen. He wants to understand his customers better: how often they visit, how much they spend, and which items they love the most. This information will help him decide whether to expand the loyalty program and improve the overall customer experience.
+
+---
+
+## Entity Relationship Diagram
+
+![ERD](https://user-images.githubusercontent.com/81607668/127271130-dca9aedd-4ca9-4ed8-b6ec-1e1920dca4a8.png)
+
+---
+
+## Questions and Solutions
+
+> 💡 I built a reusable base CTE (`full_table`) that combines all three tables — used across most questions to keep the code clean and consistent.
+
+```sql
+WITH full_table AS (
+    SELECT sales.customer_id, sales.order_date, sales.product_id,
+    menu.product_name, menu.price, members.join_date
+    FROM sales
+    LEFT JOIN menu ON sales.product_id = menu.product_id
+    LEFT JOIN members ON sales.customer_id = members.customer_id
+)
+```
+
+---
+
+### Q1 — What is the total amount each customer spent at the restaurant?
+
+```sql
+SELECT customer_id, SUM(price) AS total_amount
+FROM sales
+LEFT JOIN menu ON sales.product_id = menu.product_id
+GROUP BY customer_id
+ORDER BY customer_id ASC;
+```
+
+**Approach:**
+- `LEFT JOIN` connects `sales` and `menu` on `product_id` to get the price for each order
+- `SUM(price)` adds up all purchases per customer
+- `GROUP BY customer_id` separates the total per customer
+
+**Result:**
+| customer_id | total_amount |
+|---|---|
+| A | 76 |
+| B | 74 |
+| C | 36 |
+
+- Customer A spent $76, Customer B spent $74, and Customer C spent $36.
+- Customer C spent the least — they never joined the loyalty program and only ever ordered ramen.
+
+---
+
+### Q2 — How many days has each customer visited the restaurant?
+
+```sql
+SELECT customer_id, COUNT(DISTINCT order_date) AS total_visit
+FROM sales
+GROUP BY customer_id
+ORDER BY customer_id ASC;
+```
+
+**Approach:**
+- `COUNT(DISTINCT order_date)` is the key here — a customer can order multiple items on the same day, so `DISTINCT` prevents counting that as multiple visits
+- Without `DISTINCT`, Customer A would show 6 visits instead of the correct 4
+
+**Result:**
+| customer_id | total_visit |
+|---|---|
+| A | 4 |
+| B | 6 |
+| C | 2 |
+
+---
+
+### Q3 — What was the first item from the menu purchased by each customer?
+
+```sql
+WITH first_item_purchased AS (
+    SELECT customer_id, product_name, order_date,
+        DENSE_RANK() OVER (PARTITION BY customer_id ORDER BY order_date ASC) AS rank
+    FROM sales
+    LEFT JOIN menu ON sales.product_id = menu.product_id
+)
+SELECT customer_id, product_name, order_date
+FROM first_item_purchased
+WHERE rank = 1;
+```
+
+**Approach:**
+- `DENSE_RANK()` ranks each order per customer from earliest to latest
+- `PARTITION BY customer_id` resets the ranking for each customer
+- `WHERE rank = 1` filters only the first purchase(s)
+- `DENSE_RANK()` is used instead of `ROW_NUMBER()` because a customer could have ordered multiple items on the same first date — both should appear as rank 1
+
+**Result:**
+| customer_id | product_name |
+|---|---|
+| A | sushi |
+| A | curry |
+| B | curry |
+| C | ramen |
+
+- Customer A ordered both sushi and curry on the same first date — both count as their first purchase.
+
+---
+
+### Q4 — What is the most purchased item on the menu and how many times was it purchased?
+
+```sql
+WITH full_table AS ( ... )
+SELECT product_name AS most_purchased_product, COUNT(product_name) AS total_purchased
+FROM full_table
+GROUP BY product_name
+ORDER BY total_purchased DESC
+LIMIT 1;
+```
+
+**Approach:**
+- `COUNT(product_name)` counts how many times each item was ordered
+- `ORDER BY total_purchased DESC` sorts highest first
+- `LIMIT 1` returns only the top item
+
+**Result:**
+| most_purchased_product | total_purchased |
+|---|---|
+| ramen | 8 |
+
+- Ramen is the most ordered item with 8 total purchases — clearly the crowd favourite.
+
+---
+
+### Q5 — Which item was the most popular for each customer?
+
+```sql
+WITH full_table AS ( ... ),
+most_pop_dish AS (
+    SELECT customer_id, product_name, COUNT(product_name) AS total_orders,
+        DENSE_RANK() OVER (PARTITION BY customer_id ORDER BY COUNT(product_name) DESC) AS rank_pop
+    FROM full_table
+    GROUP BY customer_id, product_name
+)
+SELECT customer_id, product_name, total_orders
+FROM most_pop_dish
+WHERE rank_pop = 1;
+```
+
+**Approach:**
+- `COUNT(product_name)` per customer per product gives order frequency
+- `DENSE_RANK()` ranks by count descending — highest = rank 1
+- `PARTITION BY customer_id` ensures each customer gets their own ranking
+- `DENSE_RANK()` over `LIMIT` is used here because a customer can have multiple items tied for first — all should appear
+
+**Result:**
+| customer_id | product_name | total_orders |
+|---|---|---|
+| A | ramen | 3 |
+| B | sushi | 2 |
+| B | curry | 2 |
+| B | ramen | 2 |
+| C | ramen | 3 |
+
+- Customer A and C are ramen loyalists.
+- Customer B ordered all three items equally — the most adventurous eater of the three.
+
+---
+
+### Q6 — Which item was purchased first by the customer after they became a member?
+
+```sql
+WITH full_table AS ( ... ),
+join_in_membership AS (
+    SELECT customer_id, product_name AS membership_first_purchased,
+        DENSE_RANK() OVER (PARTITION BY customer_id ORDER BY order_date ASC) AS rank
+    FROM full_table
+    WHERE order_date >= join_date
+)
+SELECT customer_id, membership_first_purchased
+FROM join_in_membership
+WHERE rank = 1;
+```
+
+**Approach:**
+- `WHERE order_date >= join_date` filters only purchases made on or after joining — the join date itself counts
+- `DENSE_RANK()` ordered ASC ranks the earliest post-membership purchase as rank 1
+- Customer C doesn't appear — they never joined the program
+
+**Result:**
+| customer_id | membership_first_purchased |
+|---|---|
+| A | curry |
+| B | sushi |
+
+---
+
+### Q7 — Which item was purchased just before the customer became a member?
+
+```sql
+WITH full_table AS ( ... ),
+before_membership AS (
+    SELECT customer_id, product_name AS before_membership_last_purchased,
+        DENSE_RANK() OVER (PARTITION BY customer_id ORDER BY order_date DESC) AS rank
+    FROM full_table
+    WHERE order_date < join_date
+)
+SELECT customer_id, before_membership_last_purchased
+FROM before_membership
+WHERE rank = 1;
+```
+
+**Approach:**
+- `WHERE order_date < join_date` keeps only purchases before joining
+- `ORDER BY order_date DESC` inside `DENSE_RANK()` means the most recent pre-membership order = rank 1
+- This is the key difference from Q6 — we flip to DESC to get the "closest before" instead of "first after"
+
+**Result:**
+| customer_id | before_membership_last_purchased |
+|---|---|
+| A | sushi |
+| A | curry |
+| B | sushi |
+
+---
+
+### Q8 — What is the total items and amount spent for each member before they became a member?
+
+```sql
+WITH full_table AS ( ... )
+SELECT customer_id, COUNT(product_name) AS total_item, SUM(price) AS total_amount
+FROM full_table
+WHERE order_date < join_date
+GROUP BY customer_id
+ORDER BY customer_id ASC;
+```
+
+**Approach:**
+- `WHERE order_date < join_date` filters pre-membership purchases only
+- `COUNT(product_name)` counts items, `SUM(price)` totals the spend
+- Customer C is automatically excluded — their `join_date` is NULL so the filter removes them
+
+**Result:**
+| customer_id | total_item | total_amount |
+|---|---|---|
+| A | 2 | 25 |
+| B | 3 | 40 |
+
+---
+
+### Q9 — How many points would each customer have? ($1 = 10 pts, sushi = 2x)
+
+```sql
+WITH full_table AS ( ... )
+SELECT customer_id,
+    SUM(
+        CASE
+            WHEN product_name = 'sushi' THEN price * 20
+            ELSE price * 10
+        END
+    ) AS total_points
+FROM full_table
+GROUP BY customer_id
+ORDER BY customer_id ASC;
+```
+
+**Approach:**
+- `CASE WHEN` handles the conditional logic — sushi gets 2x (price × 20), everything else normal (price × 10)
+- `SUM()` wraps the `CASE WHEN` to total up all points per customer
+- Think of it as: if/else inside an aggregation
+
+**Result:**
+| customer_id | total_points |
+|---|---|
+| A | 860 |
+| B | 940 |
+| C | 360 |
+
+---
+
+### Q10 — How many points do A and B have at the end of January? (First week = 2x on everything)
+
+```sql
+WITH full_table AS ( ... )
+SELECT customer_id,
+    SUM(
+        CASE
+            WHEN order_date BETWEEN join_date AND join_date + INTERVAL '6 days'
+                THEN price * 20
+            WHEN product_name = 'sushi'
+                THEN price * 20
+            ELSE price * 10
+        END
+    ) AS end_of_january_total_points
+FROM full_table
+WHERE order_date <= '2021-01-31' AND join_date IS NOT NULL
+GROUP BY customer_id
+ORDER BY customer_id ASC;
+```
+
+**Approach:**
+- Three tiers of point logic:
+  - First 7 days after joining → all items 2x (price × 20)
+  - Outside first week but sushi → still 2x
+  - Everything else → normal (price × 10)
+- `CASE WHEN` stops at the first matching condition — sushi during the first week gets 2x, not 4x
+- `WHERE order_date <= '2021-01-31'` limits to January only
+- `join_date IS NOT NULL` filters members only (excludes Customer C)
+
+**Result:**
+| customer_id | end_of_january_total_points |
+|---|---|
+| A | 1370 |
+| B | 820 |
+
+---
+
+## Bonus Questions
+
+### Bonus Q1 — Join All The Things
+
+Recreate a full table showing each order with a membership status column (Y/N).
+
+```sql
+WITH full_table AS ( ... )
+SELECT customer_id, order_date, product_name, price,
+    CASE
+        WHEN order_date >= join_date THEN 'Y'
+        ELSE 'N'
+    END AS membership_status
+FROM full_table
+ORDER BY customer_id, order_date ASC;
+```
+
+**Result:**
+| customer_id | order_date | product_name | price | membership_status |
+|---|---|---|---|---|
+| A | 2021-01-01 | sushi | 10 | N |
+| A | 2021-01-01 | curry | 15 | N |
+| A | 2021-01-07 | curry | 15 | Y |
+| A | 2021-01-10 | ramen | 12 | Y |
+| A | 2021-01-11 | ramen | 12 | Y |
+| A | 2021-01-11 | ramen | 12 | Y |
+| B | 2021-01-01 | curry | 15 | N |
+| B | 2021-01-02 | curry | 15 | N |
+| B | 2021-01-04 | sushi | 10 | N |
+| B | 2021-01-11 | sushi | 10 | Y |
+| B | 2021-01-16 | ramen | 12 | Y |
+| B | 2021-02-01 | ramen | 12 | Y |
+| C | 2021-01-01 | ramen | 12 | N |
+| C | 2021-01-01 | ramen | 12 | N |
+| C | 2021-01-07 | ramen | 12 | N |
+
+---
+
+### Bonus Q2 — Rank All The Things
+
+Same table but with a ranking column — NULL for non-members, ranked for members only.
+
+```sql
+WITH full_table AS ( ... ),
+membership_table AS (
+    SELECT customer_id, order_date, product_name, price,
+        CASE
+            WHEN order_date >= join_date THEN 'Y'
+            ELSE 'N'
+        END AS membership_status
+    FROM full_table
+)
+SELECT *,
+    CASE
+        WHEN membership_status = 'N' THEN NULL
+        ELSE DENSE_RANK() OVER (
+            PARTITION BY customer_id, membership_status
+            ORDER BY order_date
+        )
+    END AS ranking
+FROM membership_table;
+```
+
+**Approach:**
+- Built on top of Bonus Q1 using a second CTE
+- `CASE WHEN membership_status = 'N' THEN NULL` assigns NULL to all non-member rows
+- `PARTITION BY customer_id, membership_status` resets ranking per customer AND per membership status — this ensures Y rows always start from rank 1
+
+**Result:**
+| customer_id | order_date | product_name | price | membership_status | ranking |
+|---|---|---|---|---|---|
+| A | 2021-01-01 | sushi | 10 | N | null |
+| A | 2021-01-01 | curry | 15 | N | null |
+| A | 2021-01-07 | curry | 15 | Y | 1 |
+| A | 2021-01-10 | ramen | 12 | Y | 2 |
+| A | 2021-01-11 | ramen | 12 | Y | 3 |
+| A | 2021-01-11 | ramen | 12 | Y | 3 |
+| B | 2021-01-01 | curry | 15 | N | null |
+| B | 2021-01-02 | curry | 15 | N | null |
+| B | 2021-01-04 | sushi | 10 | N | null |
+| B | 2021-01-11 | sushi | 10 | Y | 1 |
+| B | 2021-01-16 | ramen | 12 | Y | 2 |
+| B | 2021-02-01 | ramen | 12 | Y | 3 |
+| C | 2021-01-01 | ramen | 12 | N | null |
+| C | 2021-01-01 | ramen | 12 | N | null |
+| C | 2021-01-07 | ramen | 12 | N | null |
+
+---
