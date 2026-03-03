@@ -3,8 +3,6 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
 ![Progress](https://img.shields.io/badge/Progress-1%2F8%20Completed-blue?style=for-the-badge)
 
-![8 Week SQL Challenge Banner](https://8weeksqlchallenge.com/images/og-image.png)
-
 ---
 
 ## 👋 About This Repository
