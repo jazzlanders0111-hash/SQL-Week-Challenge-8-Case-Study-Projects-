@@ -77,8 +77,9 @@ ORDER BY customer_id ASC;
 ```
 
 **Approach:**
-- `COUNT(DISTINCT order_date)` is the key here — a customer can order multiple items on the same day, so `DISTINCT` prevents counting that as multiple visits
+- `COUNT(DISTINCT order_date)` is the key here, if a customer can order multiple items on the same day, so `DISTINCT` prevents counting that as multiple visits
 - Without `DISTINCT`, Customer A would show 6 visits instead of the correct 4
+- We can also use `ORDER BY total_visit DESC`; (if we choose to look at who visits the most)
 
 **Result:**
 | customer_id | total_visit |
@@ -98,16 +99,19 @@ WITH first_item_purchased AS (
     FROM sales
     LEFT JOIN menu ON sales.product_id = menu.product_id
 )
-SELECT customer_id, product_name, order_date
+SELECT customer_id, product_name
 FROM first_item_purchased
-WHERE rank = 1;
+WHERE rank = 1
+GROUP BY customer_id, product_name;
 ```
 
 **Approach:**
+- `first_item_purchased` is used as our CTE to create a temporary column `rank` using `DENSE_RANK()`, which ranks each customer's purchases by `order_date` — allowing us to filter only the first purchase per customer using `WHERE rank = 1` in the outer query
 - `DENSE_RANK()` ranks each order per customer from earliest to latest
-- `PARTITION BY customer_id` resets the ranking for each customer
+- `PARTITION BY customer_id` resets the ranking per customer — so each customer has their own independent ranking
 - `WHERE rank = 1` filters only the first purchase(s)
-- `DENSE_RANK()` is used instead of `ROW_NUMBER()` because a customer could have ordered multiple items on the same first date — both should appear as rank 1
+- `DENSE_RANK()` is used instead of `ROW_NUMBER()` because a customer could have ordered multiple items on the same first date — both should appear as rank 1. Since `order_date` has no timestamp, we cannot determine the exact sequence of items ordered on the same day
+- `GROUP BY customer_id, product_name` is added in the outer query to collapse duplicate rows — Customer C ordered ramen twice on the same first date, but since it's the same item, we only need to show it once
 
 **Result:**
 | customer_id | product_name |
@@ -117,8 +121,7 @@ WHERE rank = 1;
 | B | curry |
 | C | ramen |
 
-- Customer A ordered both sushi and curry on the same first date — both count as their first purchase.
-
+- Customer A ordered both sushi and curry on the same first date — both count as their first purchase since `DENSE_RANK()` assigns rank 1 to both
 ---
 
 ### Q4 — What is the most purchased item on the menu and how many times was it purchased?
