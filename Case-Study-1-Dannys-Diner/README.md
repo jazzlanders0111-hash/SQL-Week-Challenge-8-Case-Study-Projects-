@@ -1,6 +1,4 @@
-# 🍜 Case Study #1 — Danny's Diner
-
-<img src="https://user-images.githubusercontent.com/81607668/127727503-9d9e7a25-93cb-4f95-8bd0-20b87cb4b459.png" alt="Danny's Diner" width="500" height="520">
+# Case Study #1 — Danny's Diner
 
 ## 📚 Table of Contents
 - [Business Task](#business-task)
@@ -20,7 +18,7 @@ Danny opened a small Japanese restaurant in early 2021 selling his three favouri
 
 ## Entity Relationship Diagram
 
-![ERD](https://user-images.githubusercontent.com/81607668/127271130-dca9aedd-4ca9-4ed8-b6ec-1e1920dca4a8.png)
+![ERD](https://github.com/user-attachments/assets/a373ac1b-ccf2-400c-b1fa-73a4330d5586)
 
 ---
 
@@ -106,7 +104,7 @@ GROUP BY customer_id, product_name;
 ```
 
 **Approach:**
-- `first_item_purchased` is used as our CTE to create a temporary column `rank` using `DENSE_RANK()`, which ranks each customer's purchases by `order_date` — allowing us to filter only the first purchase per customer using `WHERE rank = 1` in the outer query
+- `first_item_purchased` is used as our CTE to create a temporary column `rank` using `DENSE_RANK()`, which ranks each customer's purchases by `order_date` which allows us to filter only the first purchase per customer using `WHERE rank = 1` in the outer query
 - `DENSE_RANK()` ranks each order per customer from earliest to latest
 - `PARTITION BY customer_id` resets the ranking per customer — so each customer has their own independent ranking
 - `WHERE rank = 1` filters only the first purchase(s)
