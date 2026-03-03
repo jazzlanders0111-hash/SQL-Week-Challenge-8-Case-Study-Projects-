@@ -70,4 +70,4 @@ The [#8WeekSQLChallenge](https://8weeksqlchallenge.com/) is a free SQL challenge
 ---
 
 *Built from scratch, one query at a time. 🐘*
-*#8WeekSQLChallenge • PostgreSQL
+*#8WeekSQLChallenge • PostgreSQL*
