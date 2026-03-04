@@ -163,7 +163,7 @@ WHERE rank_pop = 1;
 ```
 
 **Approach:**
-- `COUNT(product_name)` per customer per product gives order frequency
+- `COUNT(product_name)` per customer per product gives order frequency then aliased as `total_orders`
 - `DENSE_RANK()` ranks by count descending — highest = rank 1
 - `PARTITION BY customer_id` ensures each customer gets their own ranking
 - `DENSE_RANK()` over `LIMIT` is used here because a customer can have multiple items tied for first — all should appear
@@ -316,7 +316,7 @@ ORDER BY customer_id ASC;
 **Approach:**
 - Three tiers of point logic:
   - First 7 days after joining → all items 2x (price × 20)
-  - Outside first week but sushi → still 2x
+  - Outside first week but sushi → still remains 2x
   - Everything else → normal (price × 10)
 - `CASE WHEN` stops at the first matching condition — sushi during the first week gets 2x, not 4x
 - `WHERE order_date <= '2021-01-31'` limits to January only
