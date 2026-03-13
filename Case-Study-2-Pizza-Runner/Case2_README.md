@@ -22,7 +22,7 @@ Danny launched Pizza Runner — an Uber-style pizza delivery service — by recr
 
 ## Entity Relationship Diagram
 
-![ERD](https://github.com/user-attachments/assets/your-erd-image-here)
+![ERD](https://github.com/user-attachments/assets/06afef8b-c421-4514-8d97-5b367a1cc5a5)
 
 ---
 
