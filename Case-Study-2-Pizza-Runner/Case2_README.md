@@ -28,7 +28,7 @@ Danny launched Pizza Runner — an Uber-style pizza delivery service — by recr
 
 ## Data Cleaning
 
-> 💡 Before answering any questions, I inspected all six tables and found significant data quality issues in `customer_orders` and `runner_orders` — mixed `null` strings, empty strings, inconsistent units in distance and duration, and a year mismatch between order timestamps (2020) and runner registration dates (2021).
+> 💡 Before answering any questions, I inspected all six tables and found significant data quality issues in `customer_orders` and `runner_orders` — mixed `null` strings, empty strings, inconsistent units in distance and duration, and a year mismatch between order timestamps (2020) and runner registration dates (2021). I guess the author of the challenge modified it through out the years, which I cross checked it with another data analyst or he intentionally put it that way.
 >
 > Instead of CTEs, I used `TEMP TABLE`s so the cleaned data is reusable downstream across all sections without repeating the cleaning logic.
 
